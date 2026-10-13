@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>축분할 리셋 루틴</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<style>
+/* Layout: 한 줄 폭의 훈련 카드 묶음. 위에는 탭, 아래로 그날의 종목 카드가 쌓인다.
+   색 = 역도 원판 규격색(25kg 빨강 · 20kg 파랑 · 15kg 노랑 · 10kg 초록)을 날짜 종류에 붙였다. */
+:root{
+  --bg:#eef1f3; --card:#ffffff; --ink:#14181b; --mute:#5b666e; --line:#d5dbdf; --soft:#e4e9ec;
+  --red:#c8263a; --blue:#1d5bb8; --yellow:#b88a00; --green:#23825a; --grey:#6b7780;
+  --redbg:#fbe9eb; --bluebg:#e7eefb; --yellowbg:#fbf3d9; --greenbg:#e3f3ea; --greybg:#eceff1;
+  --focus:#1d5bb8;
+  --display:"Do Hyeon","IBM Plex Sans KR",system-ui,sans-serif;
+  --body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101417; --card:#182026; --ink:#e7ecef; --mute:#9aa7b0; --line:#2b353c; --soft:#212a31;
+  --red:#ff6b7a; --blue:#6ea2ff; --yellow:#f2c94c; --green:#5fd39b; --grey:#9aa7b0;
+  --redbg:#3a1d22; --bluebg:#1a2740; --yellowbg:#3a3015; --greenbg:#16332a; --greybg:#222b31;
+  --focus:#6ea2ff; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101417; --card:#182026; --ink:#e7ecef; --mute:#9aa7b0; --line:#2b353c; --soft:#212a31;
+  --red:#ff6b7a; --blue:#6ea2ff; --yellow:#f2c94c; --green:#5fd39b; --grey:#9aa7b0;
+  --redbg:#3a1d22; --bluebg:#1a2740; --yellowbg:#3a3015; --greenbg:#16332a; --greybg:#222b31;
+  --focus:#6ea2ff; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;margin:0}
+.wrap{max-width:760px;margin:0 auto;padding-inline:16px;padding-block:0 64px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-top:14px}
+.brand h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spacing:.5px;text-wrap:balance}
+.brand small{color:var(--mute);font-size:12px}
+nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 0 12px;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{flex:0 0 auto;font:inherit;font-size:14px;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+h2{font-family:var(--display);font-weight:400;font-size:24px;margin:28px 0 8px;text-wrap:balance}
+h3{font-size:16px;margin:20px 0 6px}
+p{margin:6px 0}
+.mute{color:var(--mute)}
+.lead{color:var(--mute);font-size:14px}
+.grid{display:grid;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.dayhead{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:18px 0 10px}
+.plate{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px;padding:3px 10px;border-radius:999px}
+.plate::before{content:"";width:10px;height:10px;border-radius:50%;background:currentColor}
+.p-red{color:var(--red);background:var(--redbg)} .p-blue{color:var(--blue);background:var(--bluebg)}
+.p-yellow{color:var(--yellow);background:var(--yellowbg)} .p-green{color:var(--green);background:var(--greenbg)}
+.p-grey{color:var(--grey);background:var(--greybg)}
+.daytitle{font-family:var(--display);font-size:26px;line-height:1.2}
+.stepper{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.stepper button,.btn{font:inherit;font-size:14px;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}
+.stepper input[type=date]{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:5px 8px}
+.ex{display:grid;gap:6px;border-left:4px solid var(--line)}
+.ex.red{border-left-color:var(--red)} .ex.blue{border-left-color:var(--blue)} .ex.yellow{border-left-color:var(--yellow)} .ex.green{border-left-color:var(--green)}
+.exhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.exname{font-weight:700;font-size:16px}
+.rx{font-family:var(--mono);font-weight:600;font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.meta{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:13px;color:var(--mute)}
+.opt{font-size:12px;font-weight:600;color:var(--mute);border:1px dashed var(--line);border-radius:6px;padding:0 6px}
+ul.cues{margin:2px 0 0;padding-left:18px;font-size:14px}
+ul.cues li{margin:2px 0}
+.vids{display:flex;flex-wrap:wrap;gap:6px}
+.vid{display:inline-flex;gap:6px;align-items:center;font-size:13px;text-decoration:none;color:var(--ink);background:var(--soft);border-radius:6px;padding:3px 8px}
+.vid b{font-family:var(--mono);font-weight:600;color:var(--red)}
+.sets{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sets label{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:13px;cursor:pointer;user-select:none}
+.sets input{position:absolute;opacity:0;pointer-events:none}
+.sets input:checked+span{color:var(--bg)}
+.sets label:has(input:checked){background:var(--ink);border-color:var(--ink)}
+.sets label:has(input:focus-visible){outline:2px solid var(--focus);outline-offset:2px}
+.log{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:5px 8px;width:9.5em}
+.progress{height:6px;background:var(--soft);border-radius:99px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--ink);width:0}
+.cartwrap{display:grid;gap:4px}
+.cartsum{position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:3;margin-top:12px;box-shadow:0 -4px 16px rgba(0,0,0,.08);display:grid;gap:6px}
+.tot{display:grid;gap:3px}
+.totl{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.food{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px}
+.fmain{min-width:0;display:grid;gap:2px}
+.fname{font-weight:600;font-size:14px}
+.qty{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.qty button{font:inherit;font-size:18px;width:34px;height:34px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;cursor:pointer}
+.qty .rx{min-width:1.2em;text-align:center}
+.boost{font-size:14px;background:var(--redbg);border-radius:8px;padding:6px 10px}
+.boost b{color:var(--red);margin-right:4px}
+.note{background:var(--soft);border-radius:10px;padding:12px 14px;font-size:14px}
+.note b{font-weight:700}
+.warn{border-left:4px solid var(--yellow)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+.tw{overflow-x:auto}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:700;font-size:13px;color:var(--mute)}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.cal button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 2px;cursor:pointer;display:grid;gap:2px;justify-items:center;min-width:0}
+.cal button .d{font-family:var(--mono);font-size:12px;color:var(--mute)}
+.cal button .k{font-weight:700;font-size:13px}
+.cal button.cur{outline:2px solid var(--ink)}
+.cal button.done .k::after{content:" ✓"}
+.cal .red .k{color:var(--red)} .cal .blue .k{color:var(--blue)} .cal .yellow .k{color:var(--yellow)} .cal .grey .k{color:var(--grey)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px}
+.kv dt{color:var(--mute)} .kv dd{margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.big{font-family:var(--mono);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+.row label{display:grid;gap:3px;font-size:13px;color:var(--mute)}
+.row select,.row input{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 8px;width:7.5em}
+.meal{display:grid;gap:4px}
+.meal h4{margin:0;font-size:15px}
+.meal .kc{font-family:var(--mono);font-size:13px;color:var(--mute)}
+.srcgroup summary{cursor:pointer;font-weight:700;padding:6px 0}
+.srclist{list-style:none;padding:0;margin:4px 0 12px;display:grid;gap:4px}
+.srclist a{color:var(--ink);text-decoration:none;font-size:14px}
+.srclist .ch{color:var(--mute);font-size:12px}
+.foot{margin-top:28px;font-size:12px;color:var(--mute)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap" style="padding-block:0">
+  <div class="brand"><h1>축분할 리셋 루틴</h1><small>영상 106개 자막 분석</small></div>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+</div></header>
+
+<main class="wrap" id="app"></main>
+
+<script>
+const VIDEOS = [{"id": "0FFbj_YOTnQ", "t": "[Heukja Fitness 3] Characteristics by Body Type Part 2 - Chest Shape", "topic": "chest", "v": "1065820", "ch": "흑자헬스 SurplusHealth"}, {"id": "0L0yRRjKqO0", "t": "My body changed after working out in two places I'd never done before.", "topic": "chest", "v": "592268", "ch": "성철봉"}, {"id": "1dCpIMAfI0I", "t": "운동의학 박사가 말하는 근성장 영양전략 | 전용관 교수 3부 - 감량 식단, 단백질 섭취, 탄수화물 제한, 공복 운동, QnA [EN/KR]", "topic": "diet", "v": "1859984", "ch": "다이어트 과학자 최겸 Gyum Choi"}, {"id": "1_9dRQJ5CHg", "t": "\"올챙이배 쏙 들어갑니다.\" 굶지 않고 내장지방 제일 빨리 제거하는 법 (이진복 원장 2부)", "topic": "belly", "v": "2357379", "ch": "지식인사이드"}, {"id": "3RELCN1m3nI", "t": "굶지 않고 잘 먹으면서 내장지방을 뺄 수는 없을까? | 비만 | 다이어트", "topic": "belly", "v": "10363552", "ch": "EBS 컬렉션 - 사이언스"}, {"id": "5FdETQBkTvI", "t": "The most common mistake that kicks away muscle growth opportunities", "topic": "split", "v": "544888", "ch": "세계적으로 유명한 운동 정보"}, {"id": "7O2AGa0AQxo", "t": "체지방 33% 대학생의 다이어트 브이로그..🥹🫵 운동부터 식단 레시피, 피부관리까지 다 공유함🏃🏻‍♀️💨 명란오두비, 양배추참치덮밥, 두부소보로덮밥🥗❤️", "topic": "diet", "v": "340012", "ch": "유정 YUJEONG"}, {"id": "80mth-l55rM", "t": "너는 벌크업을 해야 할까? 커팅을 해야 할까?", "topic": "belly", "v": "1000371", "ch": "흑자헬스 SurplusHealth"}, {"id": "8txh_smTqPA", "t": "Please, do push-ups like this! How to increase chest stimulation by 200%! (Push-up form, pectoral...", "topic": "chest", "v": "1673789", "ch": "보통사람을 위한 운동채널"}, {"id": "9Dn4DRlyOfM", "t": "이것만 반복하세요, 2분할 같은 4분할 운동루틴", "topic": "split", "v": "260657", "ch": "고독한김승현"}, {"id": "9wfausxAOt8", "t": "체지방 높고, 근육량 적은 헬린이 어떻게 할까?", "topic": "diet", "v": "316023", "ch": "동면중"}, {"id": "9yqYgn2tCL0", "t": "헬스할 때 '몸통 두께'부터 키워야 하는 이유?(등과 흉곽을 두텁게 만드는 운동루틴)", "topic": "chest", "v": "684727", "ch": "보통사람을 위한 운동채널"}, {"id": "A2kHURY746E", "t": "벤치프레스 완벽 가이드 - 강경원 방식", "topic": "chest", "v": "1700301", "ch": "강경원"}, {"id": "aiULyvLKlNw", "t": "완벽한 전신운동 루틴 5가지 (직장인+학생추천)", "topic": "split", "v": "203514", "ch": "준규빌더"}, {"id": "atwiUS5RJ30", "t": "Why do I go to the gym every day...? (2-Split Routine/Program for the Average Person)", "topic": "split", "v": "949831", "ch": "헬창극장"}, {"id": "bCZotPFmNBE", "t": "-10kg 감량하고 깨달은, 과식해도 살 안찌는 체질 되는 법", "topic": "diet", "v": "359504", "ch": "티벳동생"}, {"id": "bfxo9Phdkro", "t": "The Insane Workout That Doubled Chest Size and Shocked the World! (Note: Not Bench Press!)", "topic": "chest", "v": "843307", "ch": "보통사람을 위한 운동채널"}, {"id": "bG0YPd7a1Zs", "t": "If you don't want to embarrass yourself in the summer, start by building up your upper chest (Che...", "topic": "chest", "v": "463293", "ch": "헬창극장"}, {"id": "BPhFnyLNHiw", "t": "Don't Rotate Your Pelvis 1.2", "topic": "apt", "v": "2533695", "ch": "정선근 TV"}, {"id": "CnLZUXQofiI", "t": "For those just starting out or thinking about starting a fitness routine, try these five exercise...", "topic": "diet", "v": "3144599", "ch": "요무브YoMove"}, {"id": "dE5be9bjdMw", "t": "운동을 분할하는 근본적인 이유", "topic": "split", "v": "446780", "ch": "세계적으로 유명한 운동 정보"}, {"id": "dIY97bxKVf4", "t": "김경은 다시 태어나다 (계기,식단)", "topic": "diet", "v": "4705731", "ch": "다나나"}, {"id": "dJoOsjMBA9U", "t": "How to Set Calories for the Most Realistic Weight Loss", "topic": "diet", "v": "389036", "ch": "세계적으로 유명한 운동 정보"}, {"id": "dm05kUAglLE", "t": "Most people don't know that fascia is more important than muscles!?", "topic": "split", "v": "271807", "ch": "어썸블리스 AwesomeBLISS"}, {"id": "DQrsQiqphkg", "t": "【다이어트 이론】 체중별 다이어트 방법 싹 정리해서 알려드립니다! (비만-과체중-통통)", "topic": "diet", "v": "1324988", "ch": "핏블리 FITVELY"}, {"id": "drfIdEgp2ak", "t": "(A Century-Strong Back Basics) Best and Worst Exercises for Spondylolisthesis", "topic": "apt", "v": "682106", "ch": "정선근 TV"}, {"id": "dsfukdfmrUE", "t": "Subscriber Physique Review 13 - Characteristics of a Body with a Good Back but Weak Chest", "topic": "chest", "v": "924030", "ch": "흑자헬스 SurplusHealth"}, {"id": "DtTX0QcwhRw", "t": "Best vs. Worst Workout Splits", "topic": "split", "v": "265732", "ch": "급진적 과부하"}, {"id": "DyuYMQM17y0", "t": "이왕재 박사. 이렇게 운동할 거면 안 하는게 나아요. 공복 운동이 위험한 이유.운동이 오히려 독이 될 수 있습니다. 비타민C를 먹고 운동해야 하는 이유.", "topic": "belly", "v": "1095624", "ch": "교육하는 의사! 이동환TV"}, {"id": "EbEeg3_lCHI", "t": "뱃살이 안 빠지는 이유 TOP3(뱃살에 대한 오해)", "topic": "belly", "v": "1163562", "ch": "핏블리 FITVELY"}, {"id": "EG2ep3eX6wo", "t": "【편의점 식단】 헬스 트레이너가 추천하는 편의점 다이어트 음식은??", "topic": "diet", "v": "444972", "ch": "핏블리 FITVELY"}, {"id": "ElwFtekKQ7k", "t": "Most people know about muscles, but they don't know about strength.", "topic": "split", "v": "717071", "ch": "어썸블리스 AwesomeBLISS"}, {"id": "eU6AkeVetAs", "t": "How to properly stimulate the upper chest", "topic": "chest", "v": "429519", "ch": "세계적으로 유명한 운동 정보"}, {"id": "E_t0KhAsmQY", "t": "과학으로 입증된, 살 안찌는 몸으로 확 바뀌는 현실적인 방법 (조영민 교수 3부)", "topic": "belly", "v": "666243", "ch": "지식인사이드"}, {"id": "F15ANDUjPjQ", "t": "요즘 해외에서 4일만에 뱃살 빠진다고 소문난 루틴 (후기가 대박👍)", "topic": "belly", "v": "4903280", "ch": "비타민신지니 VitaminJINY"}, {"id": "fC36CluWbAA", "t": "Pelvic Correction Stretching Routine)) Corrects body shape, relieves postural imbalances, improve...", "topic": "apt", "v": "2641922", "ch": "필라테스하는 물리치료사,람PT"}, {"id": "fzYrgylYrQQ", "t": "Just follow along for 2 weeks👍🏼 A must-do chest workout for women - Fill up your upper chest and ...", "topic": "chest", "v": "762078", "ch": "소피요가 Sophie Yoga"}, {"id": "GJ4dUCCRrMQ", "t": "체지방 10% 유지하는 평일 식단템", "topic": "diet", "v": "329628", "ch": "티벳동생"}, {"id": "GLAWd8Ggkd4", "t": "가슴 근육을 골고루 넓게 꽉 채워주는 과학적인 운동 루틴", "topic": "chest", "v": "451403", "ch": "헬마드 (헬스 건강 정보)"}, {"id": "gll4N0thgdM", "t": "[ENG] 이곳은 곧 마른 비만의 성지가 됩니다🙏🏻 I 마른비만 원인부터 솔루션까지 다 알려줌!🧐", "topic": "diet", "v": "553818", "ch": "힙으뜸"}, {"id": "grxSiw7GKI8", "t": "운동을 얼마나 쉬면 근육이 빠질까?", "topic": "split", "v": "780787", "ch": "피지컬갤러리"}, {"id": "hbPwGHrBMRo", "t": "'2분할 운동 루틴', 바쁜 직장인, 학생들을 위한 최적의 분할법", "topic": "split", "v": "269254", "ch": "헬마드 (헬스 건강 정보)"}, {"id": "Hhhw0yAPvnM", "t": "과학으로 증명된 '체지방' 순식간에 태워주는 유산소 운동 방법 ㄷㄷ", "topic": "belly", "v": "617353", "ch": "헬마드 (헬스 건강 정보)"}, {"id": "HMUa6qDaVV8", "t": "A life-changing workout routine for office workers after work! (No-split/two-split routine for of...", "topic": "split", "v": "400780", "ch": "보통사람을 위한 운동채널"}, {"id": "iqgeDuyM88w", "t": "8 Min Exercises to Fix Anterior Pelvic Tilt FAST | Relieve Lower Back Pain & Look Taller!", "topic": "apt", "v": "4123643", "ch": "April Han"}, {"id": "iv8reqGucYE", "t": "제가 추천하는 부위별 운동 - 가슴, 등, 복근", "topic": "chest", "v": "865065", "ch": "강경원"}, {"id": "J0Sg9bV_VrY", "t": "[Pelvic Correction Special] Pelvic distortion, pelvic asymmetry, anterior tilt, posterior tilt, a...", "topic": "apt", "v": "2744795", "ch": "모스틱 자세연구소"}, {"id": "J4TMWaxPQKk", "t": "The fastest way for the average person to bulk up! | A 4-week bulking program that will help you ...", "topic": "diet", "v": "2053493", "ch": "보통사람을 위한 운동채널"}, {"id": "Jd6VXpOd5rQ", "t": "헬스장 초보자용 운동 완벽 가이드", "topic": "chest", "v": "1157743", "ch": "티벳동생"}, {"id": "jFqUCQRx-uU", "t": "3-Step Belly Fat Loss Process (Step-by-Step Exercises, Diet Guide)", "topic": "belly", "v": "940448", "ch": "밥프로디테"}, {"id": "jSmlAkcSTaA", "t": "Essential Stretches for Pelvic Correction (Lying Down Pelvic Asymmetry Correction Exercises)", "topic": "apt", "v": "2181139", "ch": "에일린 mind yoga"}, {"id": "Jx7nqEgC5-U", "t": "죽어라 운동해도 프레임이 넓어지지 않았던 이유+방법", "topic": "chest", "v": "2729180", "ch": "성철봉"}, {"id": "jYQxqm6ietU", "t": "Doctor Friends: How to Lose Belly Fat, According to Professor Woo Chang-yoon of Asan Medical Cent...", "topic": "belly", "v": "963749", "ch": "닥터딩요"}, {"id": "JzCaC8FywHE", "t": "근손실 없이 지방만 뺄 수 있나요?", "topic": "belly", "v": "743795", "ch": "힙으뜸"}, {"id": "K-CrEi0ymMg", "t": "The Anterior Pelvic Tilt Solution (SIT HAPPENS!)", "topic": "apt", "v": "24781635", "ch": "ATHLEAN-X™"}, {"id": "kFm_XVJKFQ8", "t": "시험기간에 -7kg⁉️ 학생 다이어트 꿀팁✨/식단 스트레스X, 빡센 운동X/식단만 해도 가능!/16:8 간헐적 단식 응용 버전", "topic": "diet", "v": "402411", "ch": "소수콩"}, {"id": "KlX-yE1iuRU", "t": "The New 2-Day Split Routine Guaranteed to Build Muscle", "topic": "split", "v": "459901", "ch": "이택민 레슨중"}, {"id": "KVx283CYPg0", "t": "헬스 일주일 횟수 몇번이 최고의 근성장을 만들까? 헬스의 운동 휴식 분할 정석 루틴", "topic": "split", "v": "210326", "ch": "헬마드 (헬스 건강 정보)"}, {"id": "LKR07K9Azug", "t": "\"지방만 10kg 빠집니다.\" 단기간에 내장지방 싹 제거하는법 '4가지'", "topic": "belly", "v": "3870750", "ch": "지식인사이드"}, {"id": "LU3AXabdZ7E", "t": "축분할 (어썸블리스) LU3AXabdZ7E", "topic": "", "v": "", "ch": ""}, {"id": "MUogMNXAF5s", "t": "Is it stupid to exercise all week without rest?", "topic": "split", "v": "2292254", "ch": "세계적으로 유명한 운동 정보"}, {"id": "nIHbHn5oRVY", "t": "5-Point Bench Press Checklist: Know the Basics, and You Can Do Any Chest Exercise", "topic": "chest", "v": "430451", "ch": "세계적으로 유명한 운동 정보"}, {"id": "nl0D5qIJioY", "t": "I'm going to tell you the secret to the \"Forward Slope,\" but you must not spread it.【Evolution Po...", "topic": "apt", "v": "944744", "ch": "어썸블리스 AwesomeBLISS"}, {"id": "nQlbDogfCpE", "t": "몸을 다시 균형있게 세우는 기적의 골반교정, 체형교정 (생리통, 다리꼬는 습관, 얼굴비대칭👍🏻)", "topic": "apt", "v": "25718063", "ch": "SomiFit"}, {"id": "nSEiWqCOmsM", "t": "A Diet Guide from a 20-Year Veteran | Deep Eugene Ep. 3: Diet", "topic": "diet", "v": "763292", "ch": "킹유진"}, {"id": "OCmYj4SPl80", "t": "Oh... So that's why they say not to puff out your chest... Yikes. If you have rounded shoulders, ...", "topic": "chest", "v": "1595100", "ch": "보통사람을 위한 운동채널"}, {"id": "ONANks7GnPY", "t": "뱃살 많은 사람들이 믿고 있는 거짓말ㅣ지식인초대석 EP.31 (조영민 교수 2부)", "topic": "belly", "v": "981902", "ch": "지식인사이드"}, {"id": "OQg448_FCds", "t": "\"자면서도 살이 빠져요\" 묵은 '지방'이 무섭게 빠지는 최고의 운동 (오상우 교수 2부)", "topic": "belly", "v": "3809734", "ch": "지식인사이드"}, {"id": "o_KHfb24B40", "t": "[근성장 시간과 원리] 헬린이가 헬창이 되기까지 걸리는 시간", "topic": "diet", "v": "333580", "ch": "근육공장"}, {"id": "PvIhCUOsZSM", "t": "Pelvis Correction Full Routine in 8 minutes! Suffered by 80% of modern people [Anterior Pelvic Tilt]", "topic": "apt", "v": "2618409", "ch": "Master Choi"}, {"id": "pXsmL6jqb-8", "t": "골반 열어주고 산소공급, 골반순환, 부인병👍🏻 | 소미핏", "topic": "apt", "v": "2322175", "ch": "SomiFit"}, {"id": "q2jEHE7Ir3A", "t": "골반, 허리, 무릎 통증을 없애는 8분 고관절 스트레칭!", "topic": "apt", "v": "4367292", "ch": "건강의학전문채널 하이닥"}, {"id": "qcTxaFMWzKs", "t": "【영양학】 다이어트 식단, 이 영상으로 g단위 완벽정리 해드림 (단백질/탄수화물/식이섬유/지방)", "topic": "diet", "v": "3330779", "ch": "핏블리 FITVELY"}, {"id": "qwLnn2AZIC8", "t": "【생리학】 살 빼는 순서?? 다이어트 먼저? 근육운동 먼저? 완벽한 순서 딱 알려드림", "topic": "diet", "v": "1734730", "ch": "핏블리 FITVELY"}, {"id": "qyYXyjjRV1A", "t": "축분할 (어썸블리스) qyYXyjjRV1A", "topic": "", "v": "", "ch": ""}, {"id": "RGfinfaJojU", "t": "하루 한 번🧘‍♀️ 꼭 해야하는 장요근 스트레칭 - 허리통증 완화, 하체부종 완화, 하체순환 효과", "topic": "apt", "v": "613240", "ch": "빵느"}, {"id": "RkcBm3U7veo", "t": "'납작한 엉덩이?' 이 안쪽 허벅지 운동순서 모르면 안큼", "topic": "split", "v": "260479", "ch": "어썸블리스 AwesomeBLISS"}, {"id": "RS3h4NbT7hA", "t": "염증 공장인 내장지방! 뱃살 먼저 빠르게 빼는 3가지 방법!!", "topic": "belly", "v": "1184592", "ch": "닥터프렌즈"}, {"id": "s0SJZiIlNqU", "t": "A fatal exercise mistake I made because my frame was narrow", "topic": "chest", "v": "708009", "ch": "성철봉"}, {"id": "SjX5Hq59txg", "t": "If you're new to fitness, definitely do a \"2-split\"! (Why can't the average person build muscle m...", "topic": "split", "v": "1848931", "ch": "보통사람을 위한 운동채널"}, {"id": "sMn0kNm20uU", "t": "The Fastest Way to Build Muscle While Losing Body Fat?!", "topic": "belly", "v": "3929704", "ch": "보통사람을 위한 운동채널"}, {"id": "sWBotNJJzZA", "t": "2분할 운동프로그램(완벽 정리)이 강좌 하나만 보시면 됩니다!", "topic": "split", "v": "588879", "ch": "양선수의 온라인PT [YangPT]"}, {"id": "t7cvlmV3Ovs", "t": "몇 분할 하세요? 추천하는 최고의 근성장 분할법!", "topic": "split", "v": "271731", "ch": "강경원"}, {"id": "TaU1pKMDESQ", "t": "You should definitely start this exercise at a young age (bulking/lean-mass/upward diet/diet)", "topic": "diet", "v": "900434", "ch": "보통사람을 위한 운동채널"}, {"id": "tJbN3tbnIPE", "t": "Advice from an obesity specialist: How to lose stubborn midlife belly fat for good (Dr. Park Yong...", "topic": "belly", "v": "1617637", "ch": "지식한상 "}, {"id": "tPVzsTr7ULw", "t": "How to Lose Fat and Gain Muscle Simultaneously [Sangseung Diet]", "topic": "belly", "v": "2053857", "ch": "세계적으로 유명한 운동 정보"}, {"id": "tQDx4WHLGjQ", "t": "군대에서 몸을 만든 내추럴 01년생의 미쳐버린 무분할 운동법 ㄷㄷ..", "topic": "split", "v": "973173", "ch": "육체미 빅터"}, {"id": "TT6pNStMtl4", "t": "몸의 변화  한달만에 체지방만 10% 감량했던 동기부여 되는 필살기 방법", "topic": "belly", "v": "609009", "ch": "퓨티스"}, {"id": "TTaBZMpzMsk", "t": "Bulking Tips for Losing 20kg in 2 Years from Anchovies (Calorie Setting Method, Period, Diet, Exe...", "topic": "diet", "v": "1008538", "ch": "만재ManJaeTv"}, {"id": "uHAroYEw2cg", "t": "'Flat butt?' That's because I don't know the order.", "topic": "split", "v": "999757", "ch": "어썸블리스 AwesomeBLISS"}, {"id": "UhN5XRBY_7w", "t": "Exercises to Build Your Inner Chest [Fact Check]", "topic": "chest", "v": "536120", "ch": "세계적으로 유명한 운동 정보"}, {"id": "vV7tdjpEy44", "t": "You go to the convenience store when you're on a diet?", "topic": "diet", "v": "365932", "ch": "김강민_Kim Kang min"}, {"id": "vzvC84IqVCA", "t": "3달만에 -23kg 감량성공!ㄷㄷ 근손실없이 체지방만 녹여버린 다이어트 식단공개", "topic": "belly", "v": "934010", "ch": "지피티"}, {"id": "wdztP2NoJ4E", "t": "근육량 증가하는 1주일 식단 루틴 (직장인, 대학생 ver.)", "topic": "diet", "v": "301952", "ch": "티벳동생"}, {"id": "wjNvFZRTmm8", "t": "\"요추 전만 이것만 기억하세요\" 허리도 재생이 가능하다는 것 아시나요? 국내 최고 허리 명의 정선근 교수님의 허리 통증 자가 치유법｜명의｜#EBS건강", "topic": "apt", "v": "1534437", "ch": "EBS 건강"}, {"id": "xafGrKukwgA", "t": "【영양학】 얼만큼 먹어야 살 빠지고 근육 생기는지 딱! g단위로 정리해 드림", "topic": "diet", "v": "350425", "ch": "핏블리 FITVELY"}, {"id": "xdNT2eWdQdY", "t": "저는 3분할로 20년 넘게 했습니다. 직장인, 학생 추천 분할법 | 운동이야기 21화", "topic": "split", "v": "1131649", "ch": "강경원"}, {"id": "XJQt09Z1Xoo", "t": "If you're new to the gym, just do these 5 things.", "topic": "split", "v": "340761", "ch": "어썸블리스 AwesomeBLISS"}, {"id": "xs9hhAQYbj8", "t": "11.5 million views!? The hidden exercise that builds chest muscles the fastest!?", "topic": "chest", "v": "1392961", "ch": "보통사람을 위한 운동채널"}, {"id": "YDJePzgPulQ", "t": "The Real Reason Your Bench Press Is Destroying Your Shoulders! (feat. Pain-Free Bench Press Form)", "topic": "chest", "v": "522572", "ch": "어썸블리스 AwesomeBLISS"}, {"id": "yF0OyqLiL6s", "t": "'Anterior Pelvic Tilt', they should have explained it like this from the start ⟪ Physical Reset 01 ⟫", "topic": "apt", "v": "1170871", "ch": "피지컬에셋"}, {"id": "Yja0j_q273o", "t": "'Why doesn't my chest feel full?' It's because I don't know the order.", "topic": "split", "v": "298370", "ch": "어썸블리스 AwesomeBLISS"}, {"id": "ytlaifkgiag", "t": "Two Ways to Achieve Lumbar Lordosis", "topic": "apt", "v": "647476", "ch": "정선근 TV"}, {"id": "ZD_uEyzcfcY", "t": "[Wild Horse] Diet/bulking meal plan from GS25 convenience store!!! No excuses!", "topic": "diet", "v": "1400248", "ch": "야생마TV"}, {"id": "zwls1D_OU7M", "t": "👍 생리통·안면비대칭·골반소리·휜다리 케어 | 자세교정 & 골반교정 체형교정운동", "topic": "apt", "v": "5904062", "ch": "SomiFit"}, {"id": "_RF3DhPPpTQ", "t": "5 Bench Press Mistakes | Avoid These and You'll Break 100kg Faster", "topic": "chest", "v": "411855", "ch": "어썸블리스 AwesomeBLISS"}];
+const VT = Object.fromEntries(VIDEOS.map(v=>[v.id,v]));
+const sec = t => { const [m,s]=t.split(':').map(Number); return m*60+s; };
+const yt = (id,t) => `https://www.youtube.com/watch?v=${id}${t?`&t=${sec(t)}s`:''}`;
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- 저장 (이 기기에만) ---------- */
+const KEY='axis-reset-v1';
+let S={}; try{S=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){S={}}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+
+/* ---------- 종목 ---------- */
+const E={
+ bench:{n:'플랫 바벨 벤치프레스',w1:'3×15',w2:'4×8–12',w3:'5×6–10',r:'2–3분',x:'마지막 세트 뒤 무게 20% 빼고 드롭세트 1번. 보조자 없으면 실패 직전(RIR 1)에서 멈춘다',
+  c:['아치는 등 위쪽(흉추)과 견갑으로만. 엉덩이는 벤치에 붙인다','바를 든 뒤 숨을 내쉬어 앞쪽 갈비뼈를 닫고 내린다','허리가 뜨면 발을 원판·스텝 위로 올린다','팔꿈치는 몸통 대비 45–70°, 바는 젖꼭지 높이로 3초 내리기'],
+  v:[['A2kHURY746E','01:30','강경원식 세팅'],['nIHbHn5oRVY','03:28','허리 꺾이면 발 올리기'],['_RF3DhPPpTQ','06:14','갈비뼈 닫고 내리기']]},
+ incl:{n:'인클라인 덤벨 프레스 30°',w1:'3×15',w2:'3×10–12',r:'2분',
+  c:['가운데로 모으지 말고 쇄골 쪽 사선 위로 민다','그립은 어깨너비 정도로 좁게','체스트업은 가볍게, 가동범위는 길게'],
+  v:[['GLAWd8Ggkd4','03:05','30° 세팅과 템포'],['eU6AkeVetAs','00:23','윗가슴은 쇄골에 붙는다']]},
+ inclH:{n:'인클라인 덤벨 프레스 30°',w1:'3×15',w2:'4×8–12',r:'2–3분',x:'마지막 세트는 실패까지 → 한 단계 가벼운 덤벨로 바로 드롭',
+  c:['앞판 B는 윗가슴이 첫 종목. 가장 힘 있을 때 한다','쇄골 쪽 사선 위로, 그립 어깨너비','덤벨은 무릎에 올렸다가 어깨로 가져온다'],
+  v:[['GLAWd8Ggkd4','03:12','세팅'],['0L0yRRjKqO0','01:00','사선으로 밀기·거울 확인']]},
+ dbflat:{n:'덤벨 프레스 (패드 10–15°) 또는 체스트프레스 머신',w1:'3×15',w2:'3×10–12',r:'2분',
+  c:['요추는 패드에 밀착, 흉추만 부풀린다','덤벨은 위에서 견갑을 살짝 앞으로 보내도 된다(바벨은 끝까지 모은 채)'],
+  v:[['Jd6VXpOd5rQ','02:18','흉추만 체스트업'],['Jd6VXpOd5rQ','03:41','위에서 견갑 전인']]},
+ dips:{n:'어시스트 딥스',w1:'2×12',w2:'3×10–12',r:'1.5–2분',x:'세트마다 보조 무게를 한 칸씩 줄인다',
+  c:['상체를 앞으로 숙이고 전완은 수직','부상 원인은 과도한 깊이. 어깨가 팔꿈치보다 많이 내려가지 않게'],
+  v:[['GLAWd8Ggkd4','04:17','깊이 제한·상체 숙임']]},
+ fly:{n:'케이블 플라이 (높이 바꿔 가며)',w1:'2×15',w2:'3×12–15',r:'1분',x:'마지막 세트 레스트포즈: 실패 → 15초 → 실패 → 15초 → 실패',
+  c:['최대로 늘렸다가 손을 끝까지 모아 쥐어짠다','세트마다 손 모으는 높이를 위·가운데·아래로 바꾼다','내릴 때 툭 떨어뜨리지 않는다'],
+  v:[['bfxo9Phdkro','01:17','높이 바꾸기 + 푸시업 슈퍼세트'],['UhN5XRBY_7w','00:56','안쪽은 최대 수축에서만']]},
+ xover:{n:'케이블 크로스오버',w1:'2×15',w2:'2×15',r:'1분',opt:1,
+  c:['손을 몸 앞에서 교차할 만큼 모은다','갈비뼈 앞쪽은 닫은 채, 옆으로 숨을 넓게'],
+  v:[['bfxo9Phdkro','01:17','상·중·하 손 위치']]},
+ lp:{n:'레그프레스',w1:'3×15',w2:'3×10–12',r:'2분',
+  c:['엉덩이가 패드에서 뜨기 직전까지만 내린다(허리 말림 방지)','위에서 무릎을 잠그지 않는다'],
+  v:[['tQDx4WHLGjQ','18:46','레그프레스 자세']]},
+ bss:{n:'불가리안 스플릿 스쿼트',w1:'2×10/측',w2:'3×10/측',r:'1.5분',
+  c:['뒷다리 쪽 장요근이 늘어난다. 교정과 하체를 한 번에','상체는 세우고 엉덩이를 살짝 말아(후방경사) 내려간다','앞발 뒤꿈치로 밀어 올라온다'],
+  v:[['uHAroYEw2cg','06:36','불가리안 순서·자세']]},
+ lext:{n:'레그 익스텐션',w1:'2×15',w2:'2–3×12–15',r:'1분',opt:1,x:'마지막 세트 더블 드롭(20%씩 두 번)',c:['위에서 1초 쥐어짜기'],v:[]},
+ curl:{n:'바벨 컬',w1:'2×12',w2:'3×10–12',r:'1분',opt:1,x:'마지막 세트 실패까지 → 21s(아래 반 7 · 위 반 7 · 전체 7)',
+  c:['엉덩이를 조이고 허리를 젖히지 않는다. 반동 금지'],v:[['aiULyvLKlNw','06:07','바벨컬 허리 보호']]},
+ hammer:{n:'해머 컬',w1:'2×12',w2:'2×12',r:'1분',opt:1,c:['팔꿈치를 옆구리에 고정'],v:[]},
+ deadbug:{n:'데드버그',w1:'2×8/측',w2:'3×8/측',r:'45초',
+  c:['허리를 바닥에 누른 채 반대쪽 팔다리를 뻗는다','허리가 뜨는 순간이 한계. 거기서 멈춘다'],
+  v:[['iqgeDuyM88w','06:07','데드버그'],['jSmlAkcSTaA','01:22','쉬운 토탭 버전']]},
+ revcr:{n:'리버스 크런치',w1:'2×12',w2:'3×12',r:'45초',
+  c:['다리를 드는 게 아니라 골반을 말아 올린다'],v:[['iqgeDuyM88w','07:28','리버스 크런치']]},
+ knee:{n:'행잉 니업',w1:'2×10',w2:'3×10–12',r:'1분',
+  c:['무릎을 올리며 꼬리뼈를 앞으로 말아 올린다','몸이 흔들리면 반동 없이 멈췄다 다시'],v:[['KlX-yE1iuRU','02:27','행잉 니업']]},
+ hollow:{n:'할로우 바디 홀드',w1:'2×15초',w2:'3×20초',r:'45초',
+  c:['허리가 뜨면 무릎을 접어 단계를 낮춘다'],v:[['PvIhCUOsZSM','04:19','단계별 할로우']]},
+ rdl:{n:'루마니안 데드리프트 (RDL)',w1:'3×12',w2:'4×8–10',w3:'4×6–10',r:'2–3분',x:'실패까지 가지 않는다(RIR 1–2). 허리가 둥글어지거나 잠금에서 젖혀지면 그 세트는 끝',
+  c:['엉덩이를 빼는 게 아니라 골반을 앞으로 접는 힙힌지','올라와서 마지막은 둔근으로 선다. 허리를 젖혀 잠그지 않는다','바는 허벅지에 붙여서'],
+  v:[['uHAroYEw2cg','09:33','RDL'],['yF0OyqLiL6s','03:01','잠금 구간 과신전이 쌓이는 이유']]},
+ lat:{n:'랫풀다운',w1:'3×15',w2:'4×10',r:'1.5–2분',x:'마지막 세트 드롭세트 1번',
+  c:['가슴을 들어 허리를 꺾지 말고, 팔꿈치를 옆구리로 끌어내린다'],v:[['aiULyvLKlNw','02:46','랫풀다운']]},
+ csrow:{n:'체스트 서포티드 로우',w1:'3×12',w2:'3×10–12',r:'1.5분',
+  c:['가슴을 패드에 붙이면 허리를 쓸 수 없다. 과전만 있는 사람에게 좋은 로우'],v:[['9Dn4DRlyOfM','08:12','엎드려 하는 로우']]},
+ thrust:{n:'힙스러스트',w1:'3×12',w2:'3×10–12',w3:'4×10–12',r:'2분',x:'마지막 세트 위에서 3초 정지 + 마지막 반복 뒤 상단 하프렙 10개',
+  c:['턱을 당기고 갈비뼈를 닫은 채 올린다','위에서 골반을 말아(후방경사) 둔근을 쥐어짠다. 허리로 더 올리지 않는다','발 안쪽까지 눌러야 허리가 안 꺾인다'],
+  v:[['uHAroYEw2cg','04:15','힙스러스트']]},
+ lcurl:{n:'레그 컬',w1:'2×15',w2:'3×12–15',r:'1분',x:'마지막 세트 드롭 1번',c:['햄스트링은 늘리지 말고 강화한다'],v:[['K-CrEi0ymMg','02:17','햄스트링은 강화 대상']]},
+ lateral:{n:'사이드 레터럴 레이즈',w1:'3×15',w2:'4×12–15',w3:'5×12–15',r:'1분',x:'마지막 세트 마이오렙: 실패 → 숨 5번 → 3–5회, 네 번 반복',c:['반동 없이, 어깨가 귀로 올라오지 않게'],v:[['tQDx4WHLGjQ','14:10','레터럴']]},
+ facepull:{n:'페이스풀 / 밴드 풀어파트',w1:'2×15',w2:'3×15',r:'1분',
+  c:['라운드숄더를 펴는 쪽. 가슴을 들어 허리를 꺾지 말고 등 뒤를 조인다'],v:[['OCmYj4SPl80','04:22','풀어파트·페이스풀']]},
+ pushdown:{n:'케이블 푸시다운',w1:'2×15',w2:'2×12–15',r:'1분',opt:1,x:'마지막 세트 더블 드롭',c:['팔꿈치 고정'],v:[]},
+ calf:{n:'카프 레이즈',w1:'2×15',w2:'2×15',r:'45초',opt:1,c:['아래에서 1초 늘린다'],v:[]},
+ pullup:{n:'어시스트 풀업',w1:'3×10',w2:'4×6–10',w3:'5×6–10',r:'2분',x:'마지막 세트 뒤 보조 무게를 올려 같은 세트에서 5회 더',
+  c:['몸통을 세우고 쇄골을 바에 가져간다','내릴 때 2초'],v:[['KlX-yE1iuRU','07:37','보조 풀업']]},
+ dbrow:{n:'원암 덤벨 로우',w1:'2×12/측',w2:'3×10/측',r:'1.5분',c:['팔꿈치를 엉덩이 쪽으로 끌어온다'],v:[['tQDx4WHLGjQ','05:35','원암 로우']]},
+ pullover:{n:'덤벨 풀오버',w1:'2×12',w2:'3×12',r:'1분',
+  c:['등 위쪽만 벤치에 걸치고 엉덩이를 살짝 내린다','팔꿈치는 살짝 굽힌 채 천천히','흉곽을 넓히진 못하지만 가슴·등 사이 두께를 보강한다'],
+  v:[['9yqYgn2tCL0','04:59','풀오버 자세']]},
+ backext:{n:'백 익스텐션',w1:'2×12',w2:'3×12',r:'1분',
+  c:['패드는 골반에 걸치고, 몸이 일자가 되면 멈춘다. 그 이상 꺾지 않는다','내려갈 때 3초, 올라올 때 엉덩이를 쪼인다'],
+  v:[['XJQt09Z1Xoo','02:29','일자까지만']]},
+ sprinter:{n:'스프린터 런지 (덤벨)',w1:'2×10/측',w2:'3×10/측',r:'1.5분',
+  c:['뒷다리 장요근은 늘리고 앞다리 둔근은 강화한다'],v:[['K-CrEi0ymMg','04:22','스프린터 런지']]},
+ sdbp:{n:'시티드 덤벨 숄더프레스 (등받이)',w1:'2×12',w2:'3×10',r:'1.5분',
+  c:['서서 하는 OHP 대신. 둔근을 조이고 허리를 등받이에 붙인다'],v:[['tQDx4WHLGjQ','15:32','OHP 기본']]},
+ rear:{n:'리어델트 플라이',w1:'2×15',w2:'2×15',r:'1분',opt:1,c:[],v:[]},
+ ohtri:{n:'오버헤드 트라이셉스 익스텐션',w1:'2×12',w2:'2×12',r:'1분',opt:1,c:['갈비뼈를 닫아 허리가 꺾이지 않게'],v:[]},
+ pushslow:{n:'슬로우 푸시업',w1:'3×최대',w2:'3×최대',r:'1분',
+  c:['5초 내리고 5초 올린다. 몸은 일직선, 둔근 조이기','쉬워지면 발을 의자에 올린다(윗가슴 쪽)'],
+  v:[['8txh_smTqPA','01:24','둔근 조이기·초저속'],['KlX-yE1iuRU','03:28','7초/7초 슬로우']]},
+ flylight:{n:'케이블 플라이 가볍게',w1:'3×15',w2:'3×15',r:'40초',c:['펌핑용. 실패까지 가지 않는다'],v:[['GLAWd8Ggkd4','01:03','3각도 예열 플라이']]},
+ z2:{n:'존2 유산소 (인클라인 걷기·사이클)',w1:'40분',w2:'40분',r:'',
+  c:['대화는 되지만 노래는 안 되는 강도','손잡이를 잡지 않는다'],v:[['LKR07K9Azug','04:31','걷기 강도 기준'],['RS3h4NbT7hA','05:30','심박 70% 정하는 법']]},
+ hiit:{n:'러닝머신 인터벌',w1:'15분',w2:'20분',r:'',
+  c:['속도 8(2분)→6(1분)→9→6→10→6 순서로 반복','주 2회까지만. 매일 하면 다친다'],v:[['Hhhw0yAPvnM','02:06','인터벌 프로토콜']]},
+ walk:{n:'걷기',w1:'60분',w2:'60분',r:'',c:['식후 20–30분씩 나눠도 된다'],v:[['LKR07K9Azug','03:49','식후 걷기']]},
+ cpm:{n:'체스트프레스 머신',w1:'3×15',w2:'4×12–15',r:'1.5분',x:'마지막 세트 더블 드롭',
+  c:['보완일의 세 번째 가슴 자극. 머신이라 실패까지 가도 안전하다','등을 패드에 붙이고 견갑을 모은 채'],v:[['GLAWd8Ggkd4','05:01','머신으로 볼륨 채우기']]},
+ dipsmax:{n:'어시스트 딥스',w1:'2×12',w2:'3×최대',r:'1.5분',
+  c:['상체 숙이고, 깊이는 어깨가 팔꿈치 높이까지'],v:[['GLAWd8Ggkd4','04:17','깊이 제한']]},
+ xoverdrop:{n:'케이블 크로스오버',w1:'2×15',w2:'3×15',r:'1분',x:'마지막 세트 끝나자마자 푸시업 최대 개수',
+  c:['손을 교차할 만큼 모아 1초 쥐어짠다'],v:[['bfxo9Phdkro','02:08','크로스오버 → 푸시업 슈퍼세트']]},
+ core:{n:'코어 서킷',w1:'2라운드',w2:'3라운드',r:'라운드 사이 1분',
+  c:['데드버그 10/측 → 할로우 30초 → 리버스 크런치 15 → 사이드 플랭크 30초/측','전부 허리를 바닥(또는 일직선)에 둔 채. 허리가 뜨면 그 동작은 끝'],
+  v:[['iqgeDuyM88w','06:07','데드버그'],['PvIhCUOsZSM','04:19','할로우'],['EbEeg3_lCHI','21:24','플랭크 큐']]},
+ z2l:{n:'존2 유산소 (인클라인 걷기·사이클)',w1:'40분',w2:'45분',r:'',
+  c:['대화는 되지만 노래는 안 되는 강도'],v:[['RS3h4NbT7hA','05:30','심박 70% 정하는 법']]},
+};
+
+/* ---------- 교정 루틴 ---------- */
+const FIX=[
+ {n:'하프닐링 장요근 스트레칭',rx:'2×30초/측',c:['무릎 꿇은 쪽 엉덩이를 조여 골반을 뒤로 만다','허리를 젖히지 않는다. 뒤에 벽이 있다고 생각'],v:[['PvIhCUOsZSM','07:02','벽 큐'],['fC36CluWbAA','19:13','꼬리뼈 아래로']]},
+ {n:'엎드려 대퇴직근 스트레칭',rx:'2×30초/측',c:['발을 잡아 당기며 치골로 바닥을 누른다'],v:[['RGfinfaJojU','04:27','치골로 누르기'],['iqgeDuyM88w','02:26','서서 하는 버전']]},
+ {n:'아기 자세',rx:'1×30초',c:['기립근 이완. 숨을 등 뒤로 넣는다'],v:[['iqgeDuyM88w','01:55','아기 자세']]},
+ {n:'후방경사 브릿지',rx:'2×10 (2초 정지)',c:['골반을 먼저 말고 올라간다. 몸이 일자가 되면 멈춘다','뒤꿈치를 엉덩이에 너무 붙이지 않는다'],v:[['yF0OyqLiL6s','04:54','후방경사 브릿지'],['PvIhCUOsZSM','05:08','브릿지 3단계']]},
+ {n:'데드버그',rx:'2×8/측',c:['숨을 내쉬며 갈비뼈를 닫고 허리를 바닥에'],v:[['iqgeDuyM88w','06:07','데드버그']]},
+ {n:'사이드라잉 힙 외전',rx:'2×15/측',c:['20°만 든다. 발끝이 위로 돌지 않게'],v:[['J0Sg9bV_VrY','09:57','20°만 들기']]},
+];
+const FIX_EXTRA=[
+ {n:'폼롤러 천골 받침 굴곡근 스트레칭',rx:'3×30초',v:[['yF0OyqLiL6s','04:11','폼롤러 위치']]},
+ {n:'할로우 바디 ↔ 브릿지 교대',rx:'20초 ↔ 10회 × 3라운드',v:[['PvIhCUOsZSM','07:56','교대 루틴']]},
+ {n:'사두근 폼롤링',rx:'부위당 12회',v:[['iqgeDuyM88w','09:33','폼롤링']]},
+ {n:'벽 기대기 호흡',rx:'3×60초',v:[['nl0D5qIJioY','03:54','벽 호흡']]},
+];
+
+/* ---------- 날 ---------- */
+const D={
+ FA:{name:'앞판 A',sub:'가슴 두께',col:'red',list:['bench','incl','fly','lp','lext','deadbug','revcr','curl'],
+   note:'가슴을 맨 앞에. 하체 앞(대퇴사두)과 복근은 그다음.',ss:'레그 익스텐션 ↔ 리버스 크런치 · 바벨 컬 ↔ 데드버그'},
+ BA:{name:'뒤판 A',sub:'둔근·등 두께',col:'blue',list:['rdl','lat','csrow','thrust','lcurl','lateral','facepull','pushdown','calf'],
+   note:'전방경사 교정의 본체. RDL·힙스러스트에서 허리로 잠그지 않는 연습을 매번 한다.',ss:'레그 컬 ↔ 페이스풀 · 푸시다운 ↔ 카프 레이즈'},
+ FB:{name:'앞판 B',sub:'윗가슴',col:'red',list:['inclH','dbflat','dips','bss','lext','xover','knee','hollow','hammer'],
+   note:'윗가슴 첫 종목. 불가리안 스플릿 스쿼트가 장요근 스트레칭을 겸한다.',ss:'레그 익스텐션 ↔ 할로우 · 크로스오버 ↔ 해머 컬'},
+ BB:{name:'뒤판 B',sub:'등 너비·자세',col:'blue',list:['pullup','dbrow','pullover','backext','sprinter','sdbp','rear','ohtri','calf'],
+   note:'등이 넓어지면 가슴 옆선이 길어져 오목한 가슴이 덜 보인다.',ss:'리어델트 ↔ 오버헤드 트라이셉스 · 백 익스텐션 ↔ 카프 레이즈'},
+ S1:{name:'보완 1',sub:'가슴 3번째 + 존2',col:'yellow',list:['cpm','dipsmax','xoverdrop','z2l'],fixExtra:true,
+   note:'원본 축분할의 "여유 있는 날 보완 운동"을 가슴 세션으로 바꿨다. 가슴이 주 3번 들어간다. 머신·딥스라 실패까지 가도 안전하다.'},
+ S2:{name:'보완 2',sub:'인터벌 + 코어',col:'yellow',list:['hiit','core','pushslow','z2s'],fixExtra:true,
+   note:'인터벌은 이날 한 번만. 코어 서킷은 전방경사용(허리를 바닥에 붙이는 복근).'},
+ R:{name:'휴식',sub:'걷기 + 측정',col:'grey',list:['walk'],
+   note:'근육은 쉬는 날 큰다. 교정 10분과 걷기만.'},
+};
+E.z2s={...E.z2,n:'존2 유산소',w1:'20분',w2:'20분'};
+
+const PLAN=['FA','BA','S1','FB','BB','S2','R','FA','BA','S1','FB','BB','S2','R'];
+const WEEK=['일','월','화','수','목','금','토'];
+
+/* ---------- 렌더 공통 ---------- */
+const vidLinks = v => v&&v.length?`<div class="vids">${v.map(([id,t,l])=>`<a class="vid" href="${yt(id,t)}" target="_blank" rel="noopener" title="${esc(VT[id]?VT[id].t:'')}"><b>${t}</b>${esc(l)}</a>`).join('')}</div>`:'';
+function nSets(rx){const m=/^(\d+)(?:–\d+)?×/.exec(rx);return m?+m[1]:0}
+
+/* ph: 1 적응(D1–3) · 2 빌드업(D4–7) · 3 풀강도(D8–14, 학기) */
+const phaseOf = i => i<3?1:i<7?2:3;
+function exCard(key,ctx,ph,col){
+  const e=E[key]; const rx=ph===1?e.w1:ph===2?e.w2:(e.w3||e.w2); const n=nSets(rx);
+  const id=`${ctx}:${key}`; const done=(S.sets&&S.sets[id])||[]; const lg=(S.log&&S.log[key])||'';
+  const boxes=n?`<div class="sets">${Array.from({length:n},(_,i)=>`<label><input type="checkbox" data-set="${id}" data-i="${i}" ${done[i]?'checked':''}><span>${i+1}</span></label>`).join('')}
+     <input class="log" id="log-${key}-${ctx}" data-log="${key}" placeholder="무게 · 횟수 메모" value="${esc(lg)}"></div>`:
+     `<div class="sets"><label><input type="checkbox" data-set="${id}" data-i="0" ${done[0]?'checked':''}><span>✓</span></label></div>`;
+  return `<article class="card ex ${col}">
+   <div class="exhead"><div class="exname">${esc(e.n)}</div><div class="rx">${rx}</div></div>
+   <div class="meta">${e.r?`<span>휴식 ${e.r}</span>`:''}${e.opt?'<span class="opt">학기 중 시간 없으면 생략</span>':''}</div>
+   ${e.c&&e.c.length?`<ul class="cues">${e.c.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>`:''}
+   ${ph===3&&e.x?`<div class="boost"><b>강도 기법</b> ${esc(e.x)}</div>`:''}
+   ${vidLinks(e.v)}${boxes}</article>`;
+}
+function fixBlock(extra){
+  return `<article class="card ex green"><div class="exhead"><div class="exname">교정 루틴 ${extra?'확장판 20분':'10분'}</div><div class="rx">${extra?'20분':'10분'}</div></div>
+   <ul class="cues">${FIX.map(f=>`<li><b>${esc(f.n)}</b> <span class="rx" style="font-size:13px">${f.rx}</span></li>`).join('')}
+   ${extra?FIX_EXTRA.map(f=>`<li><b>${esc(f.n)}</b> <span class="rx" style="font-size:13px">${f.rx}</span></li>`).join(''):''}</ul>
+   <p class="mute" style="font-size:13px">자세한 큐와 영상은 '교정' 탭.</p></article>`;
+}
+
+/* ---------- 탭 ---------- */
+const TABS=[['today','오늘'],['vac','방학 2주'],['sem','학기 주4회'],['fix','교정'],['diet','식단'],['real','현실 체크'],['src','영상 106']];
+let tab=S.tab||'today';
+function drawTabs(){
+  document.getElementById('tabs').innerHTML=TABS.map(([k,l])=>`<button role="tab" aria-selected="${k===tab}" data-tab="${k}">${l}</button>`).join('');
+}
+
+function dayIndex(){
+  if(!S.start) return S.cur||0;
+  const st=new Date(S.start+'T00:00:00'); const now=new Date(); now.setHours(0,0,0,0);
+  const i=Math.round((now-st)/864e5); return Math.max(0,Math.min(13,i));
+}
+
+const PH_NOTE={
+ 1:'<b>D1–3 적응.</b> 예전 중량의 70%, 모든 세트 RIR 2(두 개 더 할 수 있을 때 멈춤), 휴식 1–1.5분. 힘줄·인대는 근육보다 늦게 돌아오고, 첫 사흘에 무리하면 나머지 11일을 잃는다.',
+ 2:'<b>D4–7 빌드업.</b> RIR 1–2, 큰 종목 휴식 2–3분. 매 세션 무게나 횟수 하나를 올려 메모 칸에 적는다. 보조 종목은 슈퍼세트로 묶어 밀도를 올린다.',
+ 3:'<b>D8–14 풀강도.</b> 주 종목 세트 +1, 보조·고립 종목은 마지막 세트에 강도 기법(드롭·레스트포즈·마이오렙). 바벨 큰 종목은 보조자 없으면 실패 직전에서 멈춘다. 다음 주는 학기 4주 주기의 1주차로 이어진다.'};
+const PROG=`<div class="card" style="margin-top:12px;font-size:14px"><b>무게 올리는 규칙</b> · 반복 범위의 <b>맨 위 숫자를 모든 세트에서 채우면</b> 다음번에 무게를 올린다(바벨 2.5–5 kg, 덤벨·머신 한 칸). 올린 날은 범위 아래쪽부터 다시. 가볍게 느껴지면 세트를 늘리지 말고 RIR을 지킨다. 마지막 세트는 1–2개밖에 더 못 할 만큼. 그래도 더 하고 싶으면 가슴 첫 두 종목에만 +1세트.</div>`;
+const STOP=`<div class="note warn" style="margin-top:12px"><b>이러면 그날은 볼륨 절반</b> · 관절(근육 말고)이 아프다 · 다음 날 아침 허리가 아프다 · 같은 무게가 두 번 연속 안 올라간다 · 잠이 안 온다.<br>
+ <b>이러면 바로 병원</b> · 콜라색 소변 + 근육이 붓고 심하게 아프다(횡문근융해. 오래 쉰 뒤 고반복·고볼륨 첫 주에 생긴다). 물을 충분히.</div>`;
+function renderDay(i,ctxPrefix){
+  const k=PLAN[i]; const d=D[k]; const ph=phaseOf(i);
+  const ctx=`${ctxPrefix}${i}`;
+  let date='';
+  if(S.start){const t=new Date(S.start+'T00:00:00');t.setDate(t.getDate()+i);date=`${t.getMonth()+1}/${t.getDate()} (${WEEK[t.getDay()]})`;}
+  const isLift=['FA','BA','FB','BB'].includes(k);
+  return `<div class="dayhead"><span class="plate p-${d.col}">${d.name}</span><span class="daytitle">Day ${i+1} · ${esc(d.sub)}</span><span class="mute">${date}</span></div>
+   <p class="lead">${esc(d.note)}</p>
+   <div class="note" style="margin:10px 0">${PH_NOTE[ph]}</div>
+   ${isLift?`<div class="card" style="margin-bottom:12px;font-size:14px"><b>하루 두 번</b> · 오전 교정 10분 + 걷기 40분 / 오후 본운동 + 존2 20분${ph>=2&&d.ss?`<br><b>슈퍼세트</b> · ${esc(d.ss)} (쉬지 않고 번갈아, 한 바퀴 뒤 1분 휴식)`:''}</div>`:''}
+   <div class="grid">
+    ${fixBlock(!!d.fixExtra)}
+    ${d.list.map(x=>exCard(x,ctx,ph,d.col)).join('')}
+    ${isLift?exCard('z2s',ctx,ph,'yellow'):''}
+   </div>
+   <p class="mute" style="font-size:13px;margin-top:10px">하루 종일: 식후 걷기 포함 1만 2천 보, 50분마다 일어나 하프닐링 30초, 잠 8시간.</p>
+   ${isLift?PROG:''}${STOP}`;
+}
+
+function vTab(){
+  const cur=S.cur??0;
+  const cal=PLAN.map((k,i)=>{const d=D[k];const ctx=`v${i}`;const total=d.list.length;
+    const doneN=Object.keys(S.sets||{}).filter(x=>x.startsWith(ctx+':')&&S.sets[x].some(Boolean)).length;
+    return `<button class="${d.col} ${i===cur?'cur':''} ${doneN>=Math.ceil(total*0.6)?'done':''}" data-day="${i}"><span class="d">D${i+1}</span><span class="k">${d.name.replace(' ','')}</span></button>`}).join('');
+  return `<h2>방학 14일</h2>
+  <p class="lead">원본 축분할은 주 4회(앞-뒤-휴-앞-뒤)이고 6일짜리 축분할은 어느 영상에도 없다. 그래서 4일은 축분할, 남는 2일은 원본이 말한 "보완 운동"으로 채웠다. 보완 1은 가슴 세 번째 세션이라 가슴이 주 3번 들어간다. 강도는 D1–3 적응 → D4–7 빌드업 → D8–14 풀강도로 올린다.</p>
+  <div class="card" style="margin:12px 0"><div class="cal">${cal}</div></div>
+  ${renderDay(cur,'v')}`;
+}
+function todayTab(){
+  const i=dayIndex();
+  return `<div class="card" style="margin-top:16px"><div class="stepper">
+    <label for="start" class="mute" style="font-size:13px">방학 시작일</label>
+    <input type="date" id="start" value="${S.start||''}">
+    <button data-step="-1" aria-label="전날">◀</button><button data-step="1" aria-label="다음날">▶</button>
+    <span class="mute" style="font-size:13px">${S.start?'날짜에 맞춰 자동으로 오늘 운동을 보여준다':'시작일을 넣으면 매일 그날 운동이 뜬다'}</span></div></div>
+   ${renderDay(i,'v')}`;
+}
+
+function semTab(){
+  return `<h2>학기 중 · 주 4회 1시간</h2>
+  <p class="lead">축분할 원본 그대로 앞판 A → 뒤판 A → 쉼 → 앞판 B → 뒤판 B. 요일은 자유, 순서만 지킨다. 한 번 빠지면 다음 날 이어서 하면 된다.</p>
+  <div class="card"><div class="tw"><table>
+   <tr><th>시간</th><th>할 일</th></tr>
+   <tr><td class="n">0–7분</td><td>교정 루틴(워밍업 겸)</td></tr>
+   <tr><td class="n">7–52분</td><td>본운동. 각 날의 위 5–6종목. <span class="opt">생략 가능</span> 표시는 시간이 남을 때만</td></tr>
+   <tr><td class="n">52–60분</td><td>인터벌 8분 또는 집에 걸어가기</td></tr></table></div></div>
+  <h3>4주 주기 (축분할 원본의 주기화)</h3>
+  <div class="card"><div class="tw"><table>
+   <tr><th>주</th><th>반복</th><th>세트</th><th>느낌</th></tr>
+   <tr><td class="n">1주</td><td class="n">6–8회</td><td>표의 세트 수</td><td>무겁게. RIR 1–2</td></tr>
+   <tr><td class="n">2주</td><td class="n">10–12회</td><td>표의 세트 수</td><td>중간 무게</td></tr>
+   <tr><td class="n">3주</td><td class="n">15–20회</td><td>종목당 −1세트</td><td>가볍게 많이</td></tr>
+   <tr><td class="n">4주</td><td class="n">10회</td><td>절반</td><td>디로드. RIR 4, 관절 쉬는 주</td></tr></table></div>
+  <p class="mute" style="font-size:13px">구체적 수치는 자막에 없어 원본 설명(1주 고중량 → 2주 고반복 → 3주 초고반복·세트 감소 → 4주 디로드)에 맞춰 채웠다.</p></div>
+  <h3>주 3회밖에 못 가는 주</h3>
+  <div class="note">순서를 굴린다. 이번 주 앞A·뒤A·앞B, 다음 주 뒤B·앞A·뒤A … 다섯 번째가 다음 주 첫 번째가 된다. 가슴이 2주에 3번은 들어간다.</div>
+  <h3>시간이 남는 주 · 5번째 날</h3>
+  <div class="note">방학의 <b>보완 1(가슴 3번째)</b>을 그대로 한다. 체스트프레스 머신 → 딥스 → 크로스오버+푸시업, 30분이면 끝난다. 앞판 다음 날은 피한다.</div>
+  <h3>1시간에 다 넣는 법</h3>
+  <div class="note">보조 종목은 슈퍼세트로 묶고(각 날 아래 표시), 고립 종목 마지막 세트에만 강도 기법을 쓴다. 바벨 큰 종목은 실패 직전까지만.</div>
+  ${['FA','BA','FB','BB'].map(k=>{const d=D[k];return `<div class="dayhead"><span class="plate p-${d.col}">${d.name}</span><span class="daytitle">${esc(d.sub)}</span></div>
+   <p class="mute" style="font-size:13px">슈퍼세트 · ${esc(d.ss)}</p>
+   <div class="grid">${d.list.map(x=>exCard(x,'s'+k,3,d.col)).join('')}</div>`}).join('')}
+  ${PROG}${STOP}`;
+}
+
+function fixTab(){
+  return `<h2>전방경사 교정</h2>
+  <p class="lead">17개 영상이 모인 결론: 장요근·대퇴직근·기립근은 늘리고, 둔근·햄스트링·복근은 강화한다. 햄스트링은 늘리지 않는다. 매일 아침 10분, 하체 날은 워밍업으로 한 번 더.</p>
+  <div class="grid" style="margin-top:12px">${FIX.map(f=>`<article class="card ex green"><div class="exhead"><div class="exname">${esc(f.n)}</div><div class="rx">${f.rx}</div></div>
+   <ul class="cues">${f.c.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>${vidLinks(f.v)}</article>`).join('')}</div>
+  <h3>보완일 추가분 (확장판 20분)</h3>
+  <div class="grid">${FIX_EXTRA.map(f=>`<article class="card ex green"><div class="exhead"><div class="exname">${esc(f.n)}</div><div class="rx">${f.rx}</div></div>${vidLinks(f.v)}</article>`).join('')}</div>
+  <h3>헬스장 종목을 할 때</h3>
+  <div class="card"><ul class="cues">
+   <li><b>스쿼트·RDL·힙스러스트·데드</b>: 마지막에 허리를 젖혀 잠그지 않는다. 둔근으로 서면 끝 ${vidLinks([['yF0OyqLiL6s','03:01','잠금 과신전']])}</li>
+   <li><b>벤치</b>: 아치는 흉추로만, 바 들고 숨 내쉬어 갈비뼈 닫기, 허리 뜨면 발 올리기</li>
+   <li><b>머리 위로 미는 종목</b>: 서서 하는 OHP 대신 등받이 있는 시티드 프레스(영상 근거는 없고 일반 지침)</li>
+   <li><b>숨</b>: 무거운 세트는 들이마셔 배 둘레 360°로 버티고, 교정 운동은 내쉬며 갈비뼈를 닫는다</li>
+   <li><b>"오리궁둥이" 대신 "당당한 가슴"</b>: 골반을 돌려 만드는 허리 곡선이 아니라 흉추를 세운다 ${vidLinks([['ytlaifkgiag','01:40','당당한 가슴']])}</li></ul></div>
+  <h3>2주마다 같은 조건에서 재기</h3>
+  <div class="card"><ul class="cues">
+   <li><b>토마스 테스트</b>: 침대 끝에서 한쪽 무릎을 끌어안고 눕는다. 반대쪽 허벅지가 뜨면 장요근, 무릎이 90° 안 접히면 대퇴직근이 짧다</li>
+   <li><b>벨트 버클 거울 테스트</b> ${vidLinks([['yF0OyqLiL6s','02:07','벨트 버클']])}</li>
+   <li><b>ASIS–치골 삼각형</b>이 세로로 서 있는지 ${vidLinks([['iqgeDuyM88w','00:00','삼각형 확인']])}</li>
+   <li><b>옆모습 사진 + 배꼽 높이 허리둘레</b>: 자세 몫과 뱃살 몫을 따로 본다</li></ul></div>
+  <h3>책상 앞에서</h3>
+  <div class="card"><ul class="cues">
+   <li>50분마다 일어나 하프닐링 장요근 스트레칭 30초</li>
+   <li>엉덩이를 의자 깊숙이 넣고 등받이에 기댄다 ${vidLinks([['wjNvFZRTmm8','02:40','앉는 법']])}</li>
+   <li>바닥 물건은 힙힌지나 런지로 줍는다</li></ul></div>`;
+}
+
+/* ---------- 식단 ---------- */
+function calc(){
+  const sex=S.sex||'m', age=+(S.age||24), h=+(S.h||177), w=+(S.w||73);
+  const bmr=10*w+6.25*h-5*age+(sex==='m'?5:-161);
+  const vac=Math.round(bmr*1.7*0.8/10)*10, sem=Math.round(bmr*1.45*0.85/10)*10;
+  const pv=Math.round(w*2.0), ps=Math.round(w*1.8), fat=Math.round(w*0.8);
+  const cv=Math.round((vac-pv*4-fat*9)/4), cs=Math.round((sem-ps*4-fat*9)/4);
+  return {bmr:Math.round(bmr),vac,sem,pv,ps,fat,cv,cs,w};
+}
+/* ---------- 식단: 편의점 제품 (식약처 영양성분DB · 2026-10 편의점 행사가) ---------- */
+/* pr = 행사가로 샀을 때 개당 가격(원). 1+1은 2개, 2+1은 3개를 사야 이 값. cf = 영양 확실도 */
+const FOODS=[
+ // 단백질 음료
+ {id:'ultive',cat:'음료',n:'CJ 얼티브 프로틴 초코 250ml',st:'CU·세븐·이마트24',kcal:125,p:21,c:2,f:3.6,na:350,pr:1450,dl:'1+1',cf:'상'},
+ {id:'takefit',cat:'음료',n:'테이크핏 맥스 초코 250ml',st:'4대 편의점 전부',kcal:105,p:24,c:1,f:0.7,na:210,pr:1933,dl:'2+1',cf:'상'},
+ {id:'selex',cat:'음료',n:'셀렉스 프로핏 바나나 250ml',st:'4대 편의점 전부',kcal:100,p:20,c:3,f:0.7,na:300,pr:1933,dl:'2+1',cf:'상'},
+ {id:'himune',cat:'음료',n:'하이뮨 프로틴 밸런스 액티브 250ml',st:'4대 편의점 전부',kcal:130,p:20,c:6,f:2.8,na:165,pr:1933,dl:'2+1',cf:'상'},
+ {id:'drupro',cat:'음료',n:'닥터유 프로 단백질 드링크 250ml',st:'GS25 외',kcal:172,p:27,c:6,f:4.4,na:130,pr:1933,dl:'GS25 2+1 (8월)',cf:'상'},
+ {id:'labnosh',cat:'음료',n:'랩노쉬 프로틴 드링크 바나나 350ml',st:'세븐·이마트24',kcal:172,p:27,c:21,f:0,na:161,pr:2533,dl:'2+1',cf:'상'},
+ // 두유·우유
+ {id:'soyhp',cat:'두유·우유',n:'매일두유 고단백 190ml',st:'세븐·GS25',kcal:91,p:11.4,c:6.6,f:4.1,na:200,pr:900,dl:'1+1',cf:'중'},
+ {id:'vegihp',cat:'두유·우유',n:'베지밀 고단백 두유 190ml',st:'세븐·이마트24·GS25',kcal:104,p:12,c:7,f:4.5,na:200,pr:1067,dl:'2+1',cf:'상'},
+ {id:'soy999',cat:'두유·우유',n:'매일두유 99.9 190ml',st:'4대 편의점 전부',kcal:95,p:9,c:4,f:5,na:129,pr:933,dl:'2+1',cf:'상'},
+ {id:'lowmilk',cat:'두유·우유',n:'서울우유 저지방 200ml',st:'CU·세븐·이마트24',kcal:80,p:6,c:10,f:2,na:100,pr:800,dl:'2+1',cf:'상'},
+ // 닭
+ {id:'harim',cat:'닭가슴살',n:'하림 닭가슴살 갈릭 100g',st:'CU 1+1 · 세븐·이마트24 2+1',kcal:108,p:23,c:2,f:1.3,na:380,pr:2500,dl:'CU 1+1',cf:'상'},
+ {id:'sajo',cat:'닭가슴살',n:'사조안심 닭가슴살 마일드 100g',st:'이마트24 1+1 · GS25',kcal:120,p:24,c:3,f:1.3,na:430,pr:2500,dl:'이마트24 1+1',cf:'상'},
+ {id:'cjpep',cat:'닭가슴살',n:'CJ 더건강한 닭가슴살 통살페퍼 100g',st:'CU·이마트24',kcal:115,p:21,c:1,f:3.1,na:300,pr:3000,dl:'CU 2+1',cf:'상'},
+ {id:'heyroo',cat:'닭가슴살',n:'HEYROO 닭가슴살 득템 훈제 100g',st:'CU',kcal:115,p:25,c:0,f:1.6,na:520,pr:1900,dl:'정가(블로그 확인)',cf:'상·가격 불확실'},
+ {id:'chsaus',cat:'닭가슴살',n:'CJ 더건강한 닭가슴살 소시지 80g',st:'CU 1+1 · 세븐·GS25',kcal:136,p:12.8,c:3.2,f:8,na:448,pr:1450,dl:'CU 1+1',cf:'상'},
+ // 계란·유제품
+ {id:'egg2',cat:'계란·유제품',n:'CJ 1등급 훈제대란 2입',st:'이마트24',kcal:150,p:15,c:0,f:10.5,na:163,pr:1600,dl:'2+1',cf:'상'},
+ {id:'gamdong',cat:'계란·유제품',n:'감동란 2입',st:'GS25 외',kcal:138,p:13,c:1,f:9,na:430,pr:1467,dl:'2+1 (가격 오래됨)',cf:'상'},
+ {id:'white',cat:'계란·유제품',n:'가농 단백이 구운 흰자 64g',st:'이마트24·GS25',kcal:27,p:6.4,c:0,f:0,na:107,pr:1000,dl:'2+1',cf:'중'},
+ {id:'greek',cat:'계란·유제품',n:'매일 바이오 그릭요거트 무가당 150g',st:'4대 편의점 전부',kcal:135,p:10.5,c:7.5,f:7.2,na:120,pr:1700,dl:'1+1',cf:'중'},
+ {id:'string',cat:'계란·유제품',n:'상하 프로틴 스트링치즈 20g',st:'세븐·이마트24·CU',kcal:55,p:5.8,c:0.8,f:3.2,na:139,pr:1067,dl:'2+1',cf:'상'},
+ {id:'crab',cat:'계란·유제품',n:'한성 크래미 90g',st:'CU·이마트24·GS25',kcal:76,p:8.1,c:9.9,f:0.5,na:693,pr:2333,dl:'2+1',cf:'상'},
+ // 탄수화물
+ {id:'rice',cat:'탄수화물',n:'햇반 210g',st:'전 채널',kcal:315,p:5,c:70,f:1.5,na:15,pr:1600,dl:'2+1',cf:'상'},
+ {id:'rices',cat:'탄수화물',n:'작은햇반 130g',st:'세븐 외',kcal:190,p:3,c:42,f:1,na:10,pr:1333,dl:'세븐 2+1',cf:'중'},
+ {id:'banana',s:'바나나',cat:'탄수화물',n:'바나나 1개 (먹는 부분 약 100g)',st:'이마트24 외',kcal:77,p:1.1,c:20,f:0.2,na:0,pr:600,dl:'1+1 (8월)',cf:'상·무게 추정'},
+ {id:'sweetp',cat:'탄수화물',n:'순수 찐고구마 130g',st:'이마트24',kcal:186,p:1.5,c:43.8,f:0.5,na:8,pr:2000,dl:'2+1',cf:'상'},
+ {id:'cupban',cat:'탄수화물',n:'CJ 컵반 참치마요덮밥 204g',st:'CU·이마트24',kcal:400,p:12,c:52,f:16,na:530,pr:3200,dl:'2+1',cf:'상'},
+ {id:'bar',cat:'탄수화물',n:'닥터유 프로 단백질바 70g',st:'GS25 외',kcal:287,p:24,c:32,f:7,na:210,pr:1800,dl:'2+1 (가격 오래됨)',cf:'상'},
+ // 밥집 (라벨 없음, 추정)
+ {id:'home',s:'집밥 한 끼',cat:'집밥·학식',n:'집밥 한 끼: 밥 한 공기 + 고기·생선 반찬 손바닥 1개 + 나물·김치',st:'부모님 집',kcal:650,p:30,c:85,f:18,na:null,pr:0,dl:'',cf:'추정'},
+ {id:'homeplus',s:'밥 반 공기 더',cat:'집밥·학식',n:'집밥 밥 반 공기 더',st:'부모님 집',kcal:157,p:2.5,c:35,f:0.8,na:null,pr:0,dl:'',cf:'햇반 기준 환산'},
+ {id:'hak',s:'학식 한 끼',cat:'집밥·학식',n:'학식 한 끼: 밥 그대로 + 단백질 반찬 우선',st:'학교',kcal:650,p:28,c:85,f:18,na:null,pr:5000,dl:'학교마다 다름',cf:'추정'},
+ {id:'homeegg',s:'집 계란 2개',cat:'집밥·학식',n:'집에서 삶아 온 계란 2개',st:'집',kcal:150,p:12,c:1,f:10,na:null,pr:0,dl:'',cf:'일반값'},
+];
+const AVOID=[
+ ['롯데 의성마늘프랑크 70g','200 kcal · 단백질 9 g · 지방 17 g'],
+ ['닥터유 에너지바 40g','188 kcal · 단백질 6 g · 당류 15 g'],
+ ['핫브레이크 45g','224 kcal · 단백질 4 g · 당류 20 g'],
+ ['동원 그릴리 닭가슴살 스테이크 100g','185 kcal · 지방 11 g · 나트륨 780 mg. 닭가슴살인데 지방이 일반 닭가슴살의 8배'],
+ ['GS25 혜자로운집밥 7첩반상','819 kcal · 지방 33 g · 나트륨 1,399 mg. 단백질 32 g이지만 한 끼에 하루 지방의 절반'],
+];
+const FD=Object.fromEntries(FOODS.map(f=>[f.id,f]));
+const DAYPLANS=[
+ {id:'vac',name:'방학 · 집에 있는 날',target:'vac',meals:[
+   ['아침',['greek','banana','takefit']],
+   ['점심 (집밥)',['home']],
+   ['운동 1시간 전',['sweetp','banana']],
+   ['운동 직후',['ultive']],
+   ['저녁 (집밥 + 반찬 하나 더)',['home','homeplus','harim']],
+   ['자기 3시간 전까지',['soyhp']]],
+  note:'편의점은 단백질만 채우고 밥은 집에서. 하림 닭가슴살은 저녁 반찬에 얹어 먹는다.'},
+ {id:'semA',name:'학기 · 학식 점심 + 집밥 저녁',target:'sem',meals:[
+   ['등굣길',['takefit','banana','banana']],
+   ['점심 (학식)',['hak']],
+   ['운동 전',['soyhp']],
+   ['운동 직후',['ultive']],
+   ['저녁 (집밥, 밥 1.5공기)',['home','homeplus']],
+   ['밤',['greek']]],
+  note:'수업 있는 날 기본형. 학식은 밥을 덜지 말고 그대로, 단백질 반찬부터 먹는다.'},
+ {id:'semB',name:'학기 · 집밥 없는 날',target:'sem',meals:[
+   ['등굣길',['ultive','banana','banana']],
+   ['점심 (학식)',['hak']],
+   ['운동 직후',['soyhp','soyhp']],
+   ['저녁 (편의점)',['rice','harim','homeegg']],
+   ['밤',['lowmilk']]],
+  note:'편의점 저녁인 날은 15,000원으로 칼로리를 다 못 채운다. 집에서 삶은 계란·밥을 싸 오는 게 가장 싸다. 이런 날이 주 1–2일이면 괜찮다.'},
+];
+
+function sumOf(ids){return ids.reduce((a,id)=>{const f=FD[id];a.kcal+=f.kcal;a.p+=f.p;a.c+=f.c;a.f+=f.f;a.pr+=f.pr;return a},{kcal:0,p:0,c:0,f:0,pr:0})}
+const won=n=>Math.round(n).toLocaleString('ko-KR')+'원';
+const r1=n=>Math.round(n*10)/10;
+function bar(v,t,label,unit){const pct=Math.min(100,Math.round(v/t*100));const over=v>t*1.05;
+  return `<div class="tot"><div class="totl"><span>${label}</span><span class="rx">${Math.round(v).toLocaleString('ko-KR')}${unit} <span class="mute">/ ${Math.round(t).toLocaleString('ko-KR')}${unit}</span></span></div>
+   <div class="progress"><i style="width:${pct}%;background:${over?'var(--red)':'var(--ink)'}"></i></div></div>`}
+
+function dietTab(){
+  const c=calc();
+  const T={vac:{kcal:c.vac,p:c.pv},sem:{kcal:c.sem,p:c.ps}};
+  const BUDGET=15000;
+  const cart=S.cart||{}; const ids=Object.entries(cart).flatMap(([id,n])=>FD[id]?Array(n).fill(id):[]);
+  const cs=sumOf(ids); const ctgt=T[S.cartT||'sem'];
+  const effP=[...FOODS].filter(f=>f.pr>0&&f.p>=8).map(f=>({...f,e:f.p/f.pr*1000})).sort((a,b)=>b.e-a.e).slice(0,8);
+  const effK=[...FOODS].filter(f=>f.pr>0&&f.c>=20).map(f=>({...f,e:f.kcal/f.pr*1000})).sort((a,b)=>b.e-a.e).slice(0,5);
+  const cats=[...new Set(FOODS.map(f=>f.cat))];
+  return `<h2>식단</h2>
+  <p class="lead">23개 영상의 공통 결론은 <b>약한 적자 + 고단백 + 웨이트</b>(리컴프). 아래 제품 숫자는 전부 식약처 식품영양성분DB 라벨값이고, 가격은 2026년 10월 편의점 행사가다.</p>
+
+  <div class="card" style="margin-top:12px">
+   <div class="row">
+    <label for="sex">성별<select id="sex"><option value="m" ${S.sex!=='f'?'selected':''}>남</option><option value="f" ${S.sex==='f'?'selected':''}>여</option></select></label>
+    <label for="age">나이<input id="age" type="number" inputmode="numeric" value="${S.age||24}"></label>
+    <label for="h">키 cm<input id="h" type="number" inputmode="numeric" value="${S.h||177}"></label>
+    <label for="w">체중 kg<input id="w" type="number" inputmode="decimal" value="${S.w||73}"></label></div>
+   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:10px">
+    <div><div class="mute" style="font-size:13px">방학 (하루 두 번 운동, 유지량 −20%)</div><div class="big">${c.vac} kcal</div>
+     <dl class="kv"><dt>단백질</dt><dd>${c.pv} g</dd><dt>지방</dt><dd>${c.fat} g</dd><dt>탄수화물</dt><dd>${c.cv} g</dd></dl></div>
+    <div><div class="mute" style="font-size:13px">학기 (주 4회, 유지량 −15%)</div><div class="big">${c.sem} kcal</div>
+     <dl class="kv"><dt>단백질</dt><dd>${c.ps} g</dd><dt>지방</dt><dd>${c.fat} g</dd><dt>탄수화물</dt><dd>${c.cs} g</dd></dl></div></div>
+   <p class="mute" style="font-size:12px;margin-top:8px">기초대사 ${c.bmr} kcal(Mifflin-St Jeor) × 1.7 / 1.45. 출발점일 뿐이다. 7일 평균 체중이 2주 동안 그대로면 100–200 kcal 더 줄인다.</p></div>
+
+  <div class="note warn" style="margin-top:12px"><b>편의점만으로는 하루 1만 5천 원에 2,100 kcal가 안 나온다.</b> 편의점 단백질 식품은 칼로리가 낮아 단백질 130 g을 채워도 1,500 kcal 안팎에서 돈이 떨어진다. 그래서 <b>밥은 집밥·학식에서, 편의점은 단백질 채우기용</b>으로 짰다.</div>
+
+  <h3>하루 식단 예시 3개</h3>
+  <p class="mute" style="font-size:13px">합계는 아래 제품 숫자로 자동 계산된다. 칼로리가 모자라면 밥 양으로만 맞춘다(밥 반 공기 ≈ 157 kcal).</p>
+  <div class="grid">${DAYPLANS.map(d=>{const all=d.meals.flatMap(m=>m[1]);const s=sumOf(all);const t=T[d.target];
+    return `<article class="card"><div class="exhead"><div class="exname">${esc(d.name)}</div><button class="btn" data-loadplan="${d.id}">조합기에 담기</button></div>
+     <div class="tw"><table>${d.meals.map(([when,list])=>{const ms=sumOf(list);
+       return `<tr><td style="white-space:nowrap;color:var(--mute)">${esc(when)}</td><td>${list.map(id=>esc(FD[id].s||FD[id].n.replace(/ \d+(g|ml)$/,'')))
+         .reduce((acc,n)=>{const last=acc[acc.length-1];if(last&&last.n===n){last.k++}else acc.push({n,k:1});return acc},[]).map(x=>x.k>1?`${x.n} ×${x.k}`:x.n).join(' + ')}</td>
+         <td class="n">${ms.kcal}</td><td class="n">${r1(ms.p)} g</td><td class="n">${won(ms.pr)}</td></tr>`}).join('')}
+      <tr><th>합계</th><th></th><th class="n">${Math.round(s.kcal)} kcal</th><th class="n">${r1(s.p)} g</th><th class="n">${won(s.pr)}</th></tr></table></div>
+     <p style="font-size:13px;margin-top:6px">목표 ${t.kcal} kcal · 단백질 ${t.p} g · 예산 15,000원 → <b>${s.kcal>=t.kcal*0.95?'칼로리 충족':`칼로리 ${Math.round(t.kcal-s.kcal)} kcal 부족`}</b>, <b>${s.p>=t.p*0.95?'단백질 충족':`단백질 ${Math.round(t.p-s.p)} g 부족`}</b>, <b>${s.pr<=BUDGET?'예산 안':'예산 초과'}</b></p>
+     <p class="mute" style="font-size:13px">${esc(d.note)}</p></article>`}).join('')}</div>
+
+  <h3>조합기</h3>
+  <p class="mute" style="font-size:13px">오늘 먹을 걸 담으면 칼로리·단백질·금액이 합산된다. 이 기기에 저장된다.</p>
+  <div class="cartwrap">
+  ${cats.map(cat=>`<h4 style="margin:16px 0 6px">${cat}</h4><div class="grid">${FOODS.filter(f=>f.cat===cat).map(f=>{const n=cart[f.id]||0;
+    return `<div class="card food"><div class="fmain"><div class="fname">${esc(f.n)}</div>
+      <div class="meta"><span class="rx" style="font-size:13px">${f.kcal} kcal · P ${f.p} g · F ${f.f} g</span><span>${f.pr?won(f.pr):'0원'}${f.dl?` (${esc(f.dl)})`:''}</span></div>
+      <div class="meta"><span>${esc(f.st)}</span>${f.na?`<span>나트륨 ${f.na} mg</span>`:''}<span class="opt">${esc(f.cf)}</span></div></div>
+     <div class="qty"><button aria-label="${esc(f.n)} 빼기" data-dec="${f.id}">−</button><span class="rx">${n}</span><button aria-label="${esc(f.n)} 담기" data-inc="${f.id}">+</button></div></div>`}).join('')}</div>`).join('')}
+   <div class="card cartsum">
+    <div class="row" style="margin-bottom:6px;align-items:center"><label for="cartT">목표<select id="cartT"><option value="vac" ${S.cartT==='vac'?'selected':''}>방학</option><option value="sem" ${S.cartT!=='vac'?'selected':''}>학기</option></select></label>
+     <button class="btn" data-clearcart="1">비우기</button></div>
+    ${bar(cs.kcal,ctgt.kcal,'칼로리',' kcal')}${bar(cs.p,ctgt.p,'단백질',' g')}${bar(cs.pr,BUDGET,'금액','원')}
+   </div></div>
+
+  <h3>1,000원당 단백질이 많은 순</h3>
+  <div class="card"><div class="tw"><table><tr><th>제품</th><th>1,000원당</th><th>100 kcal당</th></tr>
+   ${effP.map(f=>`<tr><td>${esc(f.n)}</td><td class="n">${r1(f.e)} g</td><td class="n">${r1(f.p/f.kcal*100)} g</td></tr>`).join('')}</table></div>
+   <p class="mute" style="font-size:13px">돈 대비 단백질은 <b>프로틴 음료와 고단백 두유</b>가 가장 싸다. 닭가슴살은 1+1 행사가 걸린 체인에서 살 때만 비슷해진다(같은 하림도 2+1 체인에서는 1,000원당 6.9 g). 그릭요거트·크래미는 비싸다.</p></div>
+  <h3>칼로리가 싼 탄수화물</h3>
+  <div class="card"><div class="tw"><table><tr><th>제품</th><th>1,000원당 kcal</th></tr>
+   ${effK.map(f=>`<tr><td>${esc(f.n)}</td><td class="n">${Math.round(f.e)} kcal</td></tr>`).join('')}</table></div>
+   <p class="mute" style="font-size:13px">편의점에서 칼로리를 채워야 하면 햇반이 가장 싸다. 집밥은 0원이니 밥은 집에서.</p></div>
+
+  <h3>라벨 보는 법 (처음 보는 제품)</h3>
+  <div class="card"><ul class="cues">
+   <li><b>단백질 g × 10 ≥ 칼로리</b>면 단백질 식품이다. 하림 닭가슴살 23 g × 10 = 230 ≥ 108 kcal 합격, 프랑크 9 g × 10 = 90 < 200 kcal 탈락</li>
+   <li><b>지방 g이 단백질 g의 절반을 넘으면</b> 단백질 식품이 아니라 지방 식품이다(스테이크·소시지·닭다리살)</li>
+   <li><b>나트륨</b>: 훈제·스테이크형은 500–780 mg. 하루 2개 넘기지 않는다. 감동란은 일반 구운란보다 두 배 짜다</li>
+   <li><b>같은 이름이라도 공장마다 다르다</b>: 삼각김밥 '뉴전주비빔'은 제조사에 따라 단백질 3 g ↔ 8 g</li>
+   <li><b>행사는 매달 바뀐다</b>: 1+1이면 그 체인에서 두 개, 2+1이면 세 개 사서 냉장고에 둔다</li></ul></div>
+
+  <h3>피할 것</h3>
+  <div class="card"><ul class="cues">${AVOID.map(([n,t])=>`<li><b>${esc(n)}</b>: ${esc(t)}</li>`).join('')}</ul></div>
+
+  <h3>집밥·학식에서 고르는 법</h3>
+  <div class="grid">
+   <div class="card meal"><h4>집밥</h4><div>단백질 반찬(고기·생선·두부·계란)을 <b>손바닥 크기로 한 끼 1–2개</b>. 국·찌개 국물은 남긴다. 부모님께 "반찬에 고기나 생선 하나만 꼭" 부탁해 두면 편의점 비용이 반으로 준다.</div></div>
+   <div class="card meal"><h4>학식</h4><div>단백질 반찬부터 먹고, 튀김 반찬은 반만. 이 계획에서는 밥을 덜지 않는다(칼로리가 모자라는 쪽이라서). 단백질 = 닭가슴살이라는 생각은 버린다.</div>${vidLinks([['gll4N0thgdM','15:24','한식에서 고르는 법']])}</div>
+   <div class="card meal"><h4>외식·배달</h4><div>회덮밥은 광어로 고추장 적게, 고깃집은 목살·갈매기살 + 쌈. 다음 끼니는 평소대로 돌아온다.</div>${vidLinks([['wdztP2NoJ4E','08:21','고깃집'],['wdztP2NoJ4E','01:19','회덮밥']])}</div></div>
+
+  <h3>규칙</h3>
+  <div class="card"><ul class="cues">
+   <li>첫 주에 1–2 kg 빠지는 건 대부분 수분이다</li>
+   <li>매일 아침 공복 체중 → <b>7일 평균</b>으로 본다. 허리둘레는 주 1회 배꼽 높이</li>
+   <li>과식한 다음 날 굶지 않는다. 2–3일 동안 탄수화물만 200–300 kcal 줄인다</li>
+   <li>방학 2주는 금주. 학기 중 술자리는 단백질 안주, 다음 날 웨이트는 쉰다</li>
+   <li>잠 7–8시간. 부족하면 식욕 호르몬이 흐트러지고 근육이 안 붙는다</li>
+   <li><b>크레아틴 하루 3–5 g</b>: 영상 근거는 약하지만 보충제 중 주류 근거가 가장 단단하다. 온라인 대용량이 편의점 음료보다 훨씬 싸다</li></ul></div>
+  <p class="foot">영양: 식약처 식품영양성분DB(2026-08 기준). 가격: 편의점 행사 정리 사이트(2026-10, GS25는 8월). '추정' 표시는 라벨이 없는 집밥·학식의 대략값.</p>`;
+}
+
+function realTab(){
+  return `<h2>현실 체크</h2>
+  <p class="lead">영상들이 과장한 것과 실제로 기대할 수 있는 것을 갈라 둔다.</p>
+  <div class="grid" style="margin-top:12px">
+   <div class="card note warn"><b>2주 동안 빠지는 진짜 지방은 0.5–1.5 kg.</b> 체지방 1 kg ≈ 7,700 kcal이고 하루 적자는 500 kcal 안팎이다. 2주는 몸을 바꾸는 기간이 아니라 습관·기준선·근력 재적응 기간이다. 학기까지 이어 가는 게 본게임.</div>
+   <div class="card note"><b>근육은 2–3개월부터 보인다.</b> 처음 2–6주 커진 느낌은 부종이 섞여 있다. 쉬었다 돌아온 사람은 머슬 메모리로 처음보다 훨씬 빨리 돌아온다. 근력은 3–4주면 회복되지만 힘줄·인대는 최대 12주 걸려서 1주차를 가볍게 시작한다.</div>
+   <div class="card note"><b>전방경사: 서 있는 골반 각도가 운동으로 크게 바뀐다는 근거는 약하다.</b> 아프지 않은 성인 남성의 약 85%가 전방경사다. 확실히 바뀌는 건 ① 리프트할 때 허리로 잠그지 않는 조절력 ② 고관절 신전 가동범위(토마스 테스트) ③ 뱃살이 빠지면서 줄어드는 배 돌출이다. 배가 나와 보이는 건 자세보다 지방 몫이 크다는 게 다수 의견.</div>
+   <div class="card note"><b>오목한 가슴: 뼈 모양은 운동으로 안 바뀐다.</b> 본인이 오목가슴인 트레이너가 2년 동안 딥스·디클라인·크로스오버를 해 봤지만 모양은 그대로였다고 한다. 바뀌는 건 가슴 근육 두께, 등 너비(가슴 옆선), 체지방, 라운드숄더. 함몰이 깊거나 운동할 때 숨참·두근거림이 있으면 흉부외과에서 Haller index를 재 보는 게 맞다. ${vidLinks([['0FFbj_YOTnQ','01:13','2년 해 본 결과'],['0FFbj_YOTnQ','05:14','등 너비로 가로 늘리기']])}</div>
+   <div class="card note"><b>축분할 "47명 평균 +1.4 kg"은 대조군 없는 홍보 수치다.</b> 영상마다 기간도 60일·12주로 다르게 말한다. 그래도 구조 자체(부위당 주 2회, 회당 10세트 안팎, 기구 대기 없음)는 주류 근거와 맞아서 골랐다. 방학 6일 버전은 원본에 없어 직접 짰다.</div>
+   <div class="card note warn"><b>강도를 올리면서도 안 넣은 것</b><br>
+    · 첫날부터 실패 지점: 오래 쉰 뒤 첫 주 고볼륨이 횡문근융해가 생기는 전형적인 상황이라 D1–3만 RIR 2로 둔다<br>
+    · 바벨 벤치·RDL 실패: 보조자 없이 바벨 아래 깔리거나 허리가 말리는 게 가장 흔한 헬스장 부상이다. 실패는 머신·케이블·덤벨에서만<br>
+    · 하루 두 번 웨이트: 두 번째 운동은 걷기·존2로. 근육은 하루 한 번 때리고 쉬는 동안 큰다<br>
+    · 한 세션에 가슴 11세트 초과: 회당 약 11세트를 넘으면 효과가 급감한다는 메타분석(분할 영상들 공통). 그래서 세트를 늘리는 대신 가슴을 주 3번으로 나눴다</div>
+   <div class="card note"><b>걸러 낸 주장</b>: 복근 운동으로 뱃살 빼기, 공복 유산소 우월론, "공복 운동은 비타민C 고갈로 자살행위", 운동 직후 호르몬으로 근육이 큰다, 성장호르몬은 밤 10시–2시, 풀오버가 흉곽을 넓힌다, 골반 교정으로 다리 길이·전립선이 좋아진다.</div>
+   <div class="card note"><b>영상끼리 갈린 것과 고른 쪽</b><br>
+    · 벤치 팔꿈치: 모으기 vs 벌리기 → 45–70° 사이면 둘 다 맞다<br>
+    · 벤치 vs 플라이 먼저 → 플라이는 예열로만, 본운동은 프레스부터<br>
+    · 휴식 30초 vs 3–4분 → 큰 종목은 2–3분(근거가 긴 쪽)<br>
+    · 후방경사 운동이 디스크를 찢는다(정선근) → 본인이 "안 아픈 사람은 해도 된다"고 단서를 달았다. 다음 날 아침 허리가 아프면 멈춘다<br>
+    · 햄스트링 스트레칭 → 하지 않고 강화한다</div>
+  </div>`;
+}
+
+function srcTab(){
+  const G={split:'분할법·복귀',chest:'가슴 두께·오목가슴',belly:'뱃살·리컴프',diet:'식단',apt:'전방경사'};
+  const by={}; VIDEOS.forEach(v=>{(by[v.topic]=by[v.topic]||[]).push(v)});
+  return `<h2>읽은 영상 ${VIDEOS.length}개</h2>
+  <p class="lead">주제별 검색어 25개로 조회수 높은 영상을 골라 자막을 전부 읽었다. 자막 없는 전방경사 영상 1개는 소리를 받아 글로 옮겼다. 영어권 전방경사 영상 4개는 유튜브가 다운로드를 막아 빠졌다.</p>
+  ${Object.entries(G).map(([k,l])=>`<details class="srcgroup" ${k==='split'?'open':''}><summary>${l} · ${(by[k]||[]).length}개</summary><ul class="srclist">
+   ${(by[k]||[]).sort((a,b)=>(+b.v||0)-(+a.v||0)).map(v=>`<li><a href="${yt(v.id)}" target="_blank" rel="noopener">${esc(v.t)}</a> <span class="ch">${esc(v.ch||'')}${v.v?` · ${(+v.v/1e4).toFixed(0)}만 회`:''}</span></li>`).join('')}</ul></details>`).join('')}
+  <p class="foot">체크와 메모는 이 기기 브라우저에만 저장된다.</p>`;
+}
+
+/* ---------- 메인 ---------- */
+function render(){
+  drawTabs();
+  const app=document.getElementById('app');
+  app.innerHTML={today:todayTab,vac:vTab,sem:semTab,fix:fixTab,diet:dietTab,real:realTab,src:srcTab}[tab]();
+}
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-tab]'); if(t){tab=t.dataset.tab;S.tab=tab;save();render();window.scrollTo(0,0);return}
+  const d=e.target.closest('[data-day]'); if(d){S.cur=+d.dataset.day;save();render();return}
+  const inc=e.target.closest('[data-inc]'); if(inc){S.cart=S.cart||{};S.cart[inc.dataset.inc]=(S.cart[inc.dataset.inc]||0)+1;save();render();return}
+  const dec=e.target.closest('[data-dec]'); if(dec){S.cart=S.cart||{};const k=dec.dataset.dec;S.cart[k]=Math.max(0,(S.cart[k]||0)-1);if(!S.cart[k])delete S.cart[k];save();render();return}
+  if(e.target.closest('[data-clearcart]')){S.cart={};save();render();return}
+  const lp=e.target.closest('[data-loadplan]'); if(lp){const pl=DAYPLANS.find(x=>x.id===lp.dataset.loadplan);S.cart={};pl.meals.flatMap(m=>m[1]).forEach(id=>S.cart[id]=(S.cart[id]||0)+1);S.cartT=pl.target;save();render();
+    const el=document.querySelector('.cartwrap'); if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'});return}
+  const st=e.target.closest('[data-step]'); if(st){
+    if(S.start){const x=new Date(S.start+'T00:00:00');x.setDate(x.getDate()-(+st.dataset.step));S.start=x.toISOString().slice(0,10);}
+    else{S.cur=Math.max(0,Math.min(13,(S.cur||0)+(+st.dataset.step)));}
+    save();render();return}
+});
+document.addEventListener('change',e=>{
+  const el=e.target;
+  if(el.dataset.set){S.sets=S.sets||{};const a=S.sets[el.dataset.set]||[];a[+el.dataset.i]=el.checked;S.sets[el.dataset.set]=a;save();return}
+  if(el.dataset.log){S.log=S.log||{};S.log[el.dataset.log]=el.value;save();return}
+  if(el.id==='start'){S.start=el.value||null;save();render();return}
+  if(['sex','age','h','w','cartT'].includes(el.id)){S[el.id]=el.value;save();render();return}
+});
+render();
+</script>
+</body>
+</html>
